@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qfs"
+version = "0.0.1"
+description = "Quantum computing from scratch: a pedagogical statevector and density-matrix simulator"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "matplotlib>=3.8",
+    "qiskit>=1.0",
+    "jupytext>=1.16",
+    "jupyter",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["qfs"]
