@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from qfs import gates
 from qfs.statevector import StateVector
@@ -32,3 +33,8 @@ def test_from_amplitudes():
     sv = StateVector.from_amplitudes([0, 1, 0, 0])
     assert sv.n == 2
     assert sv.amps[1] == 1.0
+
+
+def test_from_amplitudes_rejects_non_power_of_two():
+    with pytest.raises(ValueError):
+        StateVector.from_amplitudes([1, 0, 0])

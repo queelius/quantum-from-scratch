@@ -16,6 +16,10 @@ class StateVector:
     def from_amplitudes(cls, amps, rng=None):
         amps = np.asarray(amps, dtype=np.complex128)
         n = int(round(np.log2(len(amps))))
+        if len(amps) != 2 ** n:
+            raise ValueError(
+                f"amplitude vector length {len(amps)} is not a power of two"
+            )
         sv = cls(n, rng)
         sv.amps = amps.copy()
         return sv
