@@ -30,3 +30,34 @@ class StateVector:
 
     def probabilities(self):
         return np.abs(self.amps) ** 2
+
+    def measure(self, qubit):
+        pos = self.n - 1 - qubit
+        idx = np.arange(2 ** self.n)
+        is_one = ((idx >> pos) & 1).astype(bool)
+        p_one = float(np.sum(np.abs(self.amps[is_one]) ** 2))
+        outcome = 1 if self.rng.random() < p_one else 0
+        keep = is_one if outcome == 1 else ~is_one
+        self.amps = np.where(keep, self.amps, 0.0)
+        self.amps = self.amps / np.linalg.norm(self.amps)
+        return outcome
+
+    def measure_all(self):
+        probs = self.probabilities()
+        i = int(self.rng.choice(len(probs), p=probs))
+        bits = [(i >> (self.n - 1 - q)) & 1 for q in range(self.n)]
+        self.amps = np.zeros_like(self.amps)
+        self.amps[i] = 1.0
+        return bits
+
+    def sample(self, shots):
+        probs = self.probabilities()
+        draws = self.rng.choice(len(probs), size=shots, p=probs)
+        counts = {}
+        for d in draws:
+            key = format(int(d), f"0{self.n}b")
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    def expectation(self, observable):
+        return float(np.real(np.conj(self.amps) @ observable @ self.amps))
