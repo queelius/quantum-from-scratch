@@ -7,6 +7,8 @@ from qiskit.quantum_info import Statevector
 
 from qfs import gates
 from qfs.circuit import Circuit
+from qfs.statevector import StateVector
+from qfs.algorithms.oracles import bit_oracle
 
 SINGLE = {
     "h": gates.H, "x": gates.X, "y": gates.Y,
@@ -66,3 +68,30 @@ def test_random_circuits_match_qiskit(seed):
     ours = _build_ours(n, prog)
     theirs = _build_qiskit(n, prog)
     assert _equal_up_to_phase(ours, theirs), f"mismatch n={n} prog={prog}"
+
+
+def test_bit_oracle_matches_qiskit():
+    # Cross-check bit_oracle against Qiskit at the algorithm-primitive level.
+    # f(x) = the MSB of the input register (= input qubit 0), so the oracle is a
+    # single CX from input qubit 0 to the ancilla. Inputs go through H but the
+    # ancilla stays |0>, so the oracle's permutation is observable (non-uniform
+    # state) and the choice of f is order-sensitive: this pins down both the
+    # ancilla placement and the big-endian input-bit ordering.
+    n_in = 3
+    n = n_in + 1
+    f = lambda x: (x >> (n_in - 1)) & 1
+
+    sv = StateVector(n)
+    for q in range(n_in):
+        sv.apply(gates.H, q)
+    sv.amps = bit_oracle(f, n_in) @ sv.amps
+    ours = sv.amps
+
+    m = lambda q: n - 1 - q
+    qc = QuantumCircuit(n)
+    for q in range(n_in):
+        qc.h(m(q))
+    qc.cx(m(0), m(n_in))
+    theirs = Statevector(qc).data
+
+    assert _equal_up_to_phase(ours, theirs)
