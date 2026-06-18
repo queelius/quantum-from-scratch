@@ -127,7 +127,8 @@ viz.bloch_vector(StateVector(1).apply(gates.X, 0))  # |1> -> south pole
 viz.bloch_vector(StateVector(1).apply(gates.H, 0))  # |+> -> on the equator
 
 # %%
-viz.plot_bloch(StateVector(1).apply(gates.H, 0))
+# bind to _ so the figure renders once (the inline backend), not twice
+_ = viz.plot_bloch(StateVector(1).apply(gates.H, 0))
 
 # %% [markdown]
 # Once you have the sphere, the rotation gates stop being abstract. `Ry(theta)`
@@ -139,7 +140,7 @@ viz.plot_bloch(StateVector(1).apply(gates.H, 0))
 psi = StateVector(1).apply(gates.Ry(np.pi / 3), 0)
 print("bloch vector:", viz.bloch_vector(psi))
 print("amplitudes:  ", psi.amps)
-viz.plot_bloch(psi)
+_ = viz.plot_bloch(psi)
 
 # %% [markdown]
 # ## Measurement: the one irreversible step
@@ -169,7 +170,7 @@ shots = StateVector(1, rng=np.random.default_rng(0)).apply(gates.H, 0).sample(10
 shots
 
 # %%
-viz.plot_probabilities(StateVector(1).apply(gates.H, 0))
+_ = viz.plot_probabilities(StateVector(1).apply(gates.H, 0))
 
 # %% [markdown]
 # A single `measure` is the irreversible one. It returns a bit and leaves the

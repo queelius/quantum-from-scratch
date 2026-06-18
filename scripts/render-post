@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Render a jupytext percent-format notebook to a markdown post for metafunctor.com.
+# Executes the notebook end-to-end (so figures render to PNG), then converts to
+# markdown with the images extracted alongside.
+#
+# Usage:  scripts/render-post notebooks/NAME.py
+# Output: posts/<slug>.md and posts/<slug>_files/   (slug = NAME with _ turned to -)
+#
+# The .venv already provides a "python3" kernelspec, so qfs is importable during
+# execution. Run via uv so that kernelspec is the one nbconvert finds.
+set -euo pipefail
+
+src=${1:?usage: scripts/render-post notebooks/NAME.py}
+root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$root"
+[ -f "$src" ] || { echo "no such notebook: $src" >&2; exit 2; }
+
+base=$(basename "$src" .py)
+slug=${base//_/-}
+mkdir -p posts
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# percent .py -> .ipynb (paired form, not executed yet)
+uv run jupytext --to ipynb "$src" --output "$tmp/$base.ipynb"
+
+# execute end-to-end, then convert to markdown with figures extracted to posts/<slug>_files/
+uv run jupyter nbconvert --to markdown --execute \
+  --ExecutePreprocessor.kernel_name=python3 \
+  "$tmp/$base.ipynb" --output "$slug" --output-dir posts
+
+echo "rendered: posts/$slug.md (+ posts/${slug}_files/ for figures)"
