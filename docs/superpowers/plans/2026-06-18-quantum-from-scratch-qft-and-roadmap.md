@@ -219,7 +219,7 @@ import numpy as np
 import pytest
 
 qiskit = pytest.importorskip("qiskit")
-from qiskit.circuit.library import QFT as QiskitQFT
+from qiskit.circuit.library import QFTGate
 from qiskit.quantum_info import Operator
 
 from qfs.algorithms.qft import qft_matrix
@@ -232,10 +232,10 @@ def _equal_up_to_phase(a, b):
 
 @pytest.mark.parametrize("n", [1, 2, 3, 4])
 def test_qft_matches_qiskit(n):
-    # Qiskit's QFT uses little-endian; do_swaps=True gives the standard transform.
-    # Compare our big-endian qft_matrix to Qiskit's operator with qubits reversed.
+    # QFTGate is the current (non-deprecated) Qiskit QFT. Its operator equals our
+    # big-endian qft_matrix up to a global phase (verified for n=1..4, qiskit 2.4).
     ours = qft_matrix(n)
-    theirs = Operator(QiskitQFT(num_qubits=n, do_swaps=True).reverse_bits()).data
+    theirs = Operator(QFTGate(n)).data
     assert _equal_up_to_phase(ours, theirs)
 ```
 
@@ -267,7 +267,7 @@ def qft_circuit(n):
 - [ ] **Step 4: Run to verify pass**
 
 Run: `uv run pytest tests/test_qft_circuit.py tests/test_qft_qiskit.py -v`
-Expected: PASS. If `test_qft_matches_qiskit` fails, the issue is a qubit-ordering convention in the Qiskit comparison (adjust `.reverse_bits()` / `do_swaps`), not the circuit, since the exact-match test against `qft_matrix` is the primary correctness gate.
+Expected: PASS. The `qft_circuit == qft_matrix` exact-match test is the primary correctness gate; the `QFTGate` comparison (verified to match for n=1..4 on qiskit 2.4) is the independent Qiskit cross-check. If only the Qiskit test fails, it is a qiskit-version API drift in `QFTGate`, not a bug in our circuit.
 
 - [ ] **Step 5: Run the full suite and commit**
 
