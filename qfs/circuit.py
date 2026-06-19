@@ -37,6 +37,9 @@ class Circuit:
     def cz(self, c, t):
         return self.apply(gates.Z, t, controls=(c,), label="CZ")
 
+    def swap(self, a, b):
+        return self.cnot(a, b).cnot(b, a).cnot(a, b)
+
     def run(self, state=None, rng=None):
         if state is None:
             state = StateVector(self.n, rng=rng)
