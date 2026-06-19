@@ -13,15 +13,19 @@ def test_swap_exchanges_basis_state():
 
 
 def test_swap_is_three_cnots():
-    swapped = Circuit(3).swap(0, 2).run().amps
+    # Run from |100>, not |000>: every permutation fixes |000>, so a |000> input
+    # would pass even if swap were wrong. swap(0, 2) on |100> must give |001>.
+    swapped = Circuit(3).swap(0, 2).run(state=StateVector(3).apply(gates.X, 0)).amps
     manual = (
         StateVector(3)
+        .apply(gates.X, 0)
         .apply(gates.X, 2, controls=(0,))
         .apply(gates.X, 0, controls=(2,))
         .apply(gates.X, 2, controls=(0,))
         .amps
     )
     assert np.allclose(swapped, manual)
+    assert np.allclose(swapped, [0, 1, 0, 0, 0, 0, 0, 0])  # |001>, an observable swap
 
 
 def test_swap_on_superposition():
