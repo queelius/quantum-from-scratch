@@ -33,3 +33,33 @@ def embed(U, target, n, controls=()):
         else:
             op[col, col] = 1.0
     return op
+
+
+def controlled_operator(U, control, targets, n):
+    """Full 2^n operator applying register-operator U to `targets` when `control` is 1.
+
+    U is 2^len(targets) x 2^len(targets). Big-endian: qubit q is at bit position
+    (n - 1 - q). On the control-is-0 block this is the identity.
+    """
+    dim = 2 ** n
+    op = np.zeros((dim, dim), dtype=np.complex128)
+    cpos = n - 1 - control
+    m = len(targets)
+    tpos = [n - 1 - t for t in targets]
+    for col in range(dim):
+        if not ((col >> cpos) & 1):
+            op[col, col] = 1.0
+            continue
+        r = 0
+        for tp in tpos:
+            r = (r << 1) | ((col >> tp) & 1)
+        for rp in range(2 ** m):
+            amp = U[rp, r]
+            if amp == 0:
+                continue
+            row = col
+            for b, tp in enumerate(tpos):
+                bit = (rp >> (m - 1 - b)) & 1
+                row = (row & ~(1 << tp)) | (bit << tp)
+            op[row, col] += amp
+    return op
