@@ -3,6 +3,7 @@
 import numpy as np
 
 from .dense import embed
+from .tensor import apply_gate
 
 
 class StateVector:
@@ -26,6 +27,11 @@ class StateVector:
 
     def apply(self, U, target, controls=()):
         self.amps = embed(U, target, self.n, controls) @ self.amps
+        return self
+
+    def apply_tensor(self, U, targets):
+        """Apply a k-qubit gate U to `targets` via the O(2^n) tensor engine. Chainable."""
+        self.amps = apply_gate(self.amps, U, list(targets), self.n)
         return self
 
     def probabilities(self):
