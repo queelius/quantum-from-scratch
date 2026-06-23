@@ -41,6 +41,8 @@ def controlled_operator(U, control, targets, n):
     U is 2^len(targets) x 2^len(targets). Big-endian: qubit q is at bit position
     (n - 1 - q). On the control-is-0 block this is the identity.
     """
+    if control in targets:
+        raise ValueError(f"control qubit {control} must not be among targets {targets}")
     dim = 2 ** n
     op = np.zeros((dim, dim), dtype=np.complex128)
     cpos = n - 1 - control

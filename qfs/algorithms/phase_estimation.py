@@ -10,6 +10,8 @@ from .qft import qft_matrix
 
 def phase_estimation(U, eigenstate, t, rng=None):
     eigenstate = np.asarray(eigenstate, dtype=np.complex128)
+    if not np.isclose(np.linalg.norm(eigenstate), 1.0):
+        raise ValueError("eigenstate must be normalized (L2 norm 1)")
     m = int(round(np.log2(len(eigenstate))))
     n = t + m
     targets = list(range(t, n))
