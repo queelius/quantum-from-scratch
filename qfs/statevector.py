@@ -26,6 +26,11 @@ class StateVector:
         return sv
 
     def apply(self, U, target, controls=()):
+        """Apply single-qubit gate U to `target`, conditioned on all `controls`.
+
+        Uses the dense O(4^n) embedding. For general k-qubit gates or larger
+        registers, use apply_tensor. Chainable.
+        """
         self.amps = embed(U, target, self.n, controls) @ self.amps
         return self
 

@@ -11,8 +11,11 @@ import numpy as np
 def apply_gate(amps, U, targets, n):
     """Apply k-qubit gate U to `targets` of an n-qubit statevector by contraction.
 
-    U is 2^k x 2^k (k = len(targets)). Returns the new length-2^n amplitude vector.
-    Cost is O(2^n), versus O(4^n) to build the dense operator.
+    U is 2^k x 2^k (k = len(targets)). The order of `targets` is part of the
+    contract: gate wire i (the i-th pair of row/column indices of U, big-endian)
+    acts on qubit targets[i], so targets=[c, t] and targets=[t, c] with the same U
+    are different operations. Returns the new length-2^n amplitude vector. Cost is
+    O(2^n), versus O(4^n) to build the dense operator.
     """
     k = len(targets)
     psi = amps.reshape([2] * n)

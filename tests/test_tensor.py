@@ -42,12 +42,31 @@ def test_swap_permutes_basis_state():
     assert np.allclose(out, np.eye(8)[:, 0b001])  # |001>
 
 
-def test_general_two_qubit_unitary_preserves_norm():
+def test_general_two_qubit_unitary_matches_dense():
+    # A general (non-symmetric) 2-qubit unitary on adjacent front qubits [0, 1]
+    # must equal the Kronecker embedding Q (x) I. This catches transpose, wrong-axis,
+    # and target-order bugs that a norm-only check cannot.
     rng = np.random.default_rng(2)
     M = rng.normal(size=(4, 4)) + 1j * rng.normal(size=(4, 4))
-    Q, _ = np.linalg.qr(M)  # a random 2-qubit unitary
-    v = _rand_state(4, rng)
-    assert np.isclose(np.linalg.norm(apply_gate(v, Q, [1, 3], 4)), 1.0)
+    Q, _ = np.linalg.qr(M)
+    n = 4
+    dense = np.kron(Q, np.eye(2 ** (n - 2)))
+    v = _rand_state(n, rng)
+    assert np.allclose(apply_gate(v, Q, [0, 1], n), dense @ v)
+    # and it stays unitary on non-adjacent targets [1, 3]
+    assert np.isclose(np.linalg.norm(apply_gate(v, Q, [1, 3], n)), 1.0)
+
+
+def test_toffoli_matches_dense():
+    # A 3-qubit gate (Toffoli: controls 0, 1; target 2) via apply_gate must equal
+    # the dense multi-controlled embedding, exercising the k=3 contraction path.
+    toffoli = embed(gates.X, 2, 3, controls=(0, 1))  # 8x8 Toffoli
+    rng = np.random.default_rng(4)
+    for n in range(3, 6):
+        v = _rand_state(n, rng)
+        a = apply_gate(v, toffoli, [0, 1, 2], n)
+        b = embed(gates.X, 2, n, controls=(0, 1)) @ v
+        assert np.allclose(a, b)
 
 
 def test_apply_tensor_on_statevector_matches_dense_apply():
@@ -62,8 +81,8 @@ def test_apply_tensor_on_statevector_matches_dense_apply():
 
 
 def test_scales_beyond_dense():
-    # einsum applies a gate on 16 qubits in milliseconds; the dense 2^16 x 2^16
-    # operator (~34 GB) is infeasible. Confirm it runs and stays normalized.
+    # tensor contraction applies a gate on 16 qubits in milliseconds; the dense
+    # 2^16 x 2^16 operator (~34 GB) is infeasible. Confirm it runs and stays normalized.
     n = 16
     v = np.zeros(2 ** n, dtype=complex)
     v[0] = 1.0
