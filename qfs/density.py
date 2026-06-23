@@ -14,6 +14,7 @@ class DensityMatrix:
     """A mixed quantum state: a 2^n x 2^n positive, trace-1, Hermitian operator."""
 
     def __init__(self, n, rng=None):
+        """Create an n-qubit density matrix in the ground state |0...0><0...0|."""
         self.n = n
         dim = 2 ** n
         self.rho = np.zeros((dim, dim), dtype=np.complex128)
@@ -25,14 +26,18 @@ class DensityMatrix:
         """Build the density matrix |psi><psi| of a pure state."""
         amps = np.asarray(amps, dtype=np.complex128)
         n = int(round(np.log2(len(amps))))
+        if len(amps) != 2 ** n:
+            raise ValueError(
+                f"amplitude vector length {len(amps)} is not a power of two"
+            )
         dm = cls(n, rng)
         dm.rho = np.outer(amps, amps.conj())
         return dm
 
     def apply(self, U, target, controls=()):
-        """Unitary evolution: rho -> O rho O-dagger, O the embedded gate. Chainable."""
-        O = embed(U, target, self.n, controls)
-        self.rho = O @ self.rho @ O.conj().T
+        """Unitary evolution rho -> op rho op-dagger (op is the embedded gate). Chainable."""
+        op = embed(U, target, self.n, controls)
+        self.rho = op @ self.rho @ op.conj().T
         return self
 
     def probabilities(self):
@@ -47,7 +52,9 @@ class DensityMatrix:
         """Trace out the qubits not in `keep`, returning the reduced DensityMatrix.
 
         Tracing out qubit B of an entangled pure state on AB gives a mixed state on
-        A: this is one of the two ways a density matrix becomes mixed.
+        A: this is one of the two ways a density matrix becomes mixed. `keep` is
+        sorted, so the reduced matrix is laid out in ascending kept-qubit order
+        regardless of the order it is passed in.
         """
         keep = sorted(keep)
         n = self.n
@@ -58,10 +65,13 @@ class DensityMatrix:
         idx = 0
         for q in range(n):
             if q in keep:
-                sub_row[q] = letters[idx]; idx += 1
-                sub_col[q] = letters[idx]; idx += 1
+                sub_row[q] = letters[idx]
+                idx += 1
+                sub_col[q] = letters[idx]
+                idx += 1
             else:
-                shared = letters[idx]; idx += 1
+                shared = letters[idx]
+                idx += 1
                 sub_row[q] = shared
                 sub_col[q] = shared
         subs = "".join(sub_row) + "".join(sub_col)
