@@ -17,4 +17,5 @@ def test_factor_fifteen_seed_robust():
 
 
 def test_even_number_shortcut():
+    # classical fast path only; the quantum path is exercised by test_factor_fifteen
     assert sorted(shor_factor(14, t=4, rng=np.random.default_rng(0))) == [2, 7]

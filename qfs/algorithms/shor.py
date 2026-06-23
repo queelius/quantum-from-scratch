@@ -18,8 +18,13 @@ def modmul_unitary(a, N, n_target):
 
 
 def order_from_phase(phi, N):
-    """Candidate order: denominator of the best rational approximation of phi
-    with denominator at most N (the continued-fraction convergent)."""
+    """Candidate order from a measured phase, by continued fractions.
+
+    Returns the denominator of the best rational approximation of phi whose
+    denominator is at most N (a continued-fraction convergent). The true order r
+    satisfies r < N (it divides Euler's totient of N, which is below N), so N is
+    a valid ceiling on the denominator.
+    """
     return Fraction(phi).limit_denominator(N).denominator
 
 
@@ -57,6 +62,13 @@ def shor_order(a, N, t, trials=16, rng=None):
 
 
 def shor_factor(N, t, rng=None):
+    """Factor N by reducing factoring to order finding (Shor's reduction).
+
+    Even N is handled directly. Otherwise, for each base a: if gcd(a, N) > 1 that
+    gcd is already a factor; else find the order r of a modulo N, and if r is even
+    and a**(r/2) is not -1 mod N, then gcd(a**(r/2) plus or minus 1, N) is a
+    nontrivial factor of N. Returns a factor pair, or None if none is found.
+    """
     if rng is None:
         rng = np.random.default_rng()
     if N % 2 == 0:
