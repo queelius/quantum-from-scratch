@@ -109,14 +109,18 @@ v[0] = 1.0
 t0 = time.time()
 for q in range(n):
     v = apply_gate(v, gates.H, [q], n)
-dt = time.time() - t0
-print(f"H on all {n} qubits: {dt * 1000:.1f} ms")
-print(f"the dense operator would be {(2 ** n) ** 2 * 16 / 1e12:.0f} TB")
+elapsed = time.time() - t0
+# the loop takes a few hundred milliseconds; we assert that rather than printing the
+# measured time, so the rendered post stays reproducible, while the size contrast
+# below (a few MB of statevector versus terabytes of operator) carries the point
+assert elapsed < 5.0
+print(f"H on all {n} qubits: done, a {2 ** n * 16 / 1e6:.0f} MB statevector")
+print(f"the dense operator would be {(2 ** n) ** 2 * 16 / 1e12:.1f} TB, which is why we never build it")
 print("result is the uniform superposition:", np.allclose(np.abs(v), 1 / np.sqrt(2 ** n)))
 ```
 
-    H on all 20 qubits: 402.1 ms
-    the dense operator would be 18 TB
+    H on all 20 qubits: done, a 17 MB statevector
+    the dense operator would be 17.6 TB, which is why we never build it
     result is the uniform superposition: True
 
 
