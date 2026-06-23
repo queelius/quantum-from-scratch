@@ -15,3 +15,9 @@ def modmul_unitary(a, N, n_target):
     for x in range(dim):
         op[(a * x) % N if x < N else x, x] = 1.0
     return op
+
+
+def order_from_phase(phi, N):
+    """Candidate order: denominator of the best rational approximation of phi
+    with denominator at most N (the continued-fraction convergent)."""
+    return Fraction(phi).limit_denominator(N).denominator
