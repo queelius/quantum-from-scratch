@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Build the metafunctor series bundles from the jupytext notebooks.
+
+Renders every notebooks/NN_name.py to an executed Hugo page bundle at
+post/NN-name/index.md (front matter + co-located figures), the layout
+`mf series sync` ingests. The notebooks are the single source of truth; the
+post/ tree is a build artifact (gitignored) that mf's render_command produces
+before each sync.
+
+Usage: scripts/build-series [--date YYYY-MM-DD]
+"""
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+SERIES = "quantum-from-scratch"
+TAGS = ["quantum-computing", "python", "from-scratch"]
+ROOT = Path(__file__).resolve().parent.parent
+NOTEBOOKS = ROOT / "notebooks"
+POSTS = ROOT / "post"
+
+
+def slug_of(stem: str) -> str:
+    """00_what_is_a_qubit -> 00-what-is-a-qubit."""
+    return stem.replace("_", "-")
+
+
+def weight_of(stem: str) -> int:
+    """Leading number orders the series; non-numbered (appendix) sorts last."""
+    m = re.match(r"(\d+)", stem)
+    return int(m.group(1)) if m else 999
+
+
+def render_notebook(nb_path: Path, bundle_dir: Path) -> None:
+    """Execute the notebook and write index.md + index_files/ into bundle_dir."""
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory() as tmp:
+        ipynb = Path(tmp) / (nb_path.stem + ".ipynb")
+        subprocess.run(
+            ["uv", "run", "jupytext", "--to", "ipynb", str(nb_path), "--output", str(ipynb)],
+            cwd=ROOT, check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["uv", "run", "jupyter", "nbconvert", "--to", "markdown", "--execute",
+             "--ExecutePreprocessor.kernel_name=python3",
+             str(ipynb), "--output", "index", "--output-dir", str(bundle_dir)],
+            cwd=ROOT, check=True, capture_output=True,
+        )
+
+
+def split_title_and_body(md: str):
+    """Pull the H1 title and drop the title + italic subtitle from the body."""
+    lines = md.splitlines()
+    title = None
+    start = 0
+    for i, line in enumerate(lines):
+        s = line.strip()
+        if title is None and s.startswith("# "):
+            title = s[2:].strip()
+            start = i + 1
+            continue
+        if title is not None and (s == "" or (s.startswith("*") and s.endswith("*"))):
+            start = i + 1
+            continue
+        if title is not None:
+            break
+    body = "\n".join(lines[start:]).lstrip("\n")
+    return title, body
+
+
+def first_sentence(body: str) -> str:
+    """First sentence of the first prose paragraph, for the card description."""
+    for para in body.split("\n\n"):
+        p = para.strip()
+        if p and not p.startswith(("#", "```", "![", "|", "    ", "$$")):
+            p = p.replace("\n", " ")
+            m = re.search(r"(.+?[.?!])(\s|$)", p)
+            return (m.group(1) if m else p)[:300]
+    return ""
+
+
+def yaml_escape(value: str) -> str:
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def front_matter(title: str, weight: int, date: str, description: str) -> str:
+    lines = [
+        "---",
+        f"title: {yaml_escape(title)}",
+        f"date: {date}",
+        "draft: true",
+        "tags:",
+        *[f"- {t}" for t in TAGS],
+        "series:",
+        f"- {SERIES}",
+        f"series_weight: {weight}",
+        f"description: {yaml_escape(description)}",
+        "---",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def build(date: str) -> int:
+    if POSTS.exists():
+        shutil.rmtree(POSTS)
+    notebooks = sorted(NOTEBOOKS.glob("*.py"), key=lambda p: (weight_of(p.stem), p.stem))
+    if not notebooks:
+        print("no notebooks found in", NOTEBOOKS, file=sys.stderr)
+        return 1
+    for nb in notebooks:
+        slug = slug_of(nb.stem)
+        weight = weight_of(nb.stem)
+        bundle = POSTS / slug
+        render_notebook(nb, bundle)
+        index = bundle / "index.md"
+        title, body = split_title_and_body(index.read_text())
+        if not title:
+            title = slug
+        description = first_sentence(body)
+        index.write_text(front_matter(title, weight, date, description) + body + "\n")
+        n_figs = len(list((bundle / "index_files").glob("*"))) if (bundle / "index_files").exists() else 0
+        print(f"built post/{slug}/  (weight {weight}, {n_figs} figures)")
+    print(f"\nbuilt {len(notebooks)} bundles into {POSTS}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Build metafunctor series bundles from notebooks.")
+    parser.add_argument("--date", default="2026-06-18", help="publication date for front matter (YYYY-MM-DD)")
+    args = parser.parse_args()
+    return build(args.date)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
