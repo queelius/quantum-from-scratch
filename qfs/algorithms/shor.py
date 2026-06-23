@@ -54,3 +54,22 @@ def shor_order(a, N, t, trials=16, rng=None):
         if r and pow(a, r, N) == 1:
             candidates.add(r)
     return min(candidates) if candidates else None
+
+
+def shor_factor(N, t, rng=None):
+    if rng is None:
+        rng = np.random.default_rng()
+    if N % 2 == 0:
+        return (2, N // 2)
+    for a in range(2, N):
+        g = math.gcd(a, N)
+        if g != 1:
+            return (g, N // g)
+        r = shor_order(a, N, t, rng=rng)
+        if r and r % 2 == 0:
+            x = pow(a, r // 2, N)
+            if x != N - 1:
+                for f in (math.gcd(x - 1, N), math.gcd(x + 1, N)):
+                    if 1 < f < N:
+                        return (f, N // f)
+    return None
