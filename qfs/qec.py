@@ -13,11 +13,17 @@ from .dense import embed
 _Z0Z1 = embed(gates.Z, 0, 3) @ embed(gates.Z, 1, 3)
 _Z1Z2 = embed(gates.Z, 1, 3) @ embed(gates.Z, 2, 3)
 _BITFLIP_SYNDROME = {(1, 1): None, (-1, 1): 0, (-1, -1): 1, (1, -1): 2}
-_Hall = embed(gates.H, 0, 3) @ embed(gates.H, 1, 3) @ embed(gates.H, 2, 3)
+_H_all = embed(gates.H, 0, 3) @ embed(gates.H, 1, 3) @ embed(gates.H, 2, 3)
 
 
 def encode_bitflip(a, b):
-    """Encode logical a|0>+b|1> as a|000>+b|111> via two CNOTs."""
+    """Encode logical a|0>+b|1> as a|000>+b|111> via two CNOTs.
+
+    Start with the logical state on qubit 0 (a|0..>+b|1..>) and copy that qubit's
+    value onto qubits 1 and 2 with CNOT(0->1) and CNOT(0->2). This is not cloning
+    an unknown state (which is forbidden); it spreads one logical qubit across three
+    physical ones as an entangled whole.
+    """
     psi = np.zeros(8, dtype=np.complex128)
     psi[0] = a
     psi[0b100] = b
@@ -30,8 +36,10 @@ def bitflip_syndrome(psi):
     """The parity syndrome (sign of <Z0 Z1>, sign of <Z1 Z2>) of an encoded state.
 
     The two parity operators have definite eigenvalues on a code state with at most
-    one bit-flip, so reading their expectation extracts the syndrome without
-    disturbing the logical information.
+    one bit-flip: such a state is a simultaneous +-1 eigenstate of Z0 Z1 and Z1 Z2.
+    For an eigenstate, the expectation <psi|M|psi> equals the eigenvalue exactly, so
+    reading the expectation extracts the syndrome without disturbing the logical
+    information (the parities reveal where an error is, not what a or b are).
     """
     s1 = int(round(np.real(np.conj(psi) @ _Z0Z1 @ psi)))
     s2 = int(round(np.real(np.conj(psi) @ _Z1Z2 @ psi)))
@@ -72,9 +80,9 @@ def run_phaseflip_code(a, b, error_qubit=None):
     computational basis is a bit-flip error in the X basis, where the same parity
     machinery catches it.
     """
-    psi = _Hall @ encode_bitflip(a, b)
+    psi = _H_all @ encode_bitflip(a, b)
     if error_qubit is not None:
         psi = embed(gates.Z, error_qubit, 3) @ psi
-    psi = _Hall @ psi
+    psi = _H_all @ psi
     psi = decode_bitflip(correct_bitflip(psi))
     return complex(psi[0]), complex(psi[0b100])
