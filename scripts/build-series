@@ -108,18 +108,20 @@ def front_matter(title: str, weight: int, date: str, description: str) -> str:
     return "\n".join(lines)
 
 
-def build(anchor_date: str, interval_days: int) -> int:
+def build(start_date: str, anchor_date: str) -> int:
     if POSTS.exists():
         shutil.rmtree(POSTS)
     notebooks = sorted(NOTEBOOKS.glob("*.py"), key=lambda p: (weight_of(p.stem), p.stem))
     if not notebooks:
         print("no notebooks found in", NOTEBOOKS, file=sys.stderr)
         return 1
-    # The most recent post (last in series order) sits on anchor_date; every earlier
-    # post is backdated by interval_days, so the dates track post order. The anchor is
-    # a fixed constant (not "today") so re-running this build is deterministic, which
-    # keeps `mf series sync` idempotent.
+    # Evenly space the posts across [start_date, anchor_date]: the first post sits on
+    # start_date, the most recent on anchor_date, the rest interpolated in post order.
+    # Both endpoints are fixed constants (not "today") so re-running this build is
+    # deterministic, which keeps `mf series sync` idempotent.
+    start = datetime.date.fromisoformat(start_date)
     anchor = datetime.date.fromisoformat(anchor_date)
+    span_days = (anchor - start).days
     last = len(notebooks) - 1
     for i, nb in enumerate(notebooks):
         slug = slug_of(nb.stem)
@@ -131,7 +133,8 @@ def build(anchor_date: str, interval_days: int) -> int:
         if not title:
             title = slug
         description = first_sentence(body)
-        post_date = (anchor - datetime.timedelta(days=(last - i) * interval_days)).isoformat()
+        offset = round(span_days * i / last) if last else 0
+        post_date = (start + datetime.timedelta(days=offset)).isoformat()
         index.write_text(front_matter(title, weight, post_date, description) + body + "\n")
         n_figs = len(list((bundle / "index_files").glob("*"))) if (bundle / "index_files").exists() else 0
         print(f"built post/{slug}/  (weight {weight}, date {post_date}, {n_figs} figures)")
@@ -142,16 +145,16 @@ def build(anchor_date: str, interval_days: int) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build metafunctor series bundles from notebooks.")
     parser.add_argument(
-        "--anchor-date", default="2026-06-23",
-        help="publication date of the most recent (highest-numbered) post; earlier "
-             "posts are backdated from here so the timeline tracks post order (YYYY-MM-DD)",
+        "--start-date", default="2024-01-15",
+        help="publication date of the first (lowest-numbered) post; the timeline is "
+             "evenly spaced from here to --anchor-date (YYYY-MM-DD)",
     )
     parser.add_argument(
-        "--interval-days", type=int, default=7,
-        help="days between consecutive posts (default 7, weekly)",
+        "--anchor-date", default="2026-06-23",
+        help="publication date of the most recent (highest-numbered) post (YYYY-MM-DD)",
     )
     args = parser.parse_args()
-    return build(args.anchor_date, args.interval_days)
+    return build(args.start_date, args.anchor_date)
 
 
 if __name__ == "__main__":
